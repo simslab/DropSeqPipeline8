@@ -1,6 +1,6 @@
 #! /usr/bin/python3.4
 import sys
-from DropSeqPipeline7_clipper import clipper,pearclipper
+from clipper import clipper,pearclipper
 
 technology = sys.argv[2]
 if technology == 'PearSeq':
