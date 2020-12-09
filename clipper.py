@@ -68,7 +68,7 @@ def clipper(fastq1_INFILE,technology,fastq2_INFILE): # gzip compressed input and
 	return 0
 
 # Enumerate HD=1 sequences for a given barcode sequence
-def enumerate_bc(bc):
+def enumerate_bcs(bc):
 	bcs = []
 	N = len(bc)
 	for i in range(N):
@@ -111,7 +111,7 @@ def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE):
 				ext_citeseq[bc2] = llist[0]
 	bclen = 21
 	cbclen = 12
-	cslen = len(list(citeseq.keys())[0])
+	cslen = len(list(ext_citeseq.keys())[0])
 	i = 0
 	with gzip.open(fastq1_INFILE,'rb') as f:
 		for line in f:
@@ -133,17 +133,18 @@ def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE):
 					bc_seqs[j] = bc_seqs[j][:-1]+'N'
 				llist = line.split()
 				readid = ':'.join(llist[0].split(':')[3:7])
-				j+=1
 				go = 0
 				i = 1
 			elif i == 1:
 				csbc = line[0:cslen]
 				if csbc in ext_citeseq.keys():
-					cbc = bc_seqs[j][0:12]
-					umi = bc_seqs[j][12::]
-					feature = ext_citeseq[csbc]
-					g.write('%(readid)s\t%(cbc)s\t%(umi)s\t%(feature)s\t0\n' % vars())
+					if len(bc_seqs[j]) == 21:
+						cbc = bc_seqs[j][0:12]
+						umi = bc_seqs[j][12::]
+						feature = ext_citeseq[csbc]
+						g.write('%(readid)s\t%(cbc)s\t%(umi)s\t%(feature)s\t0\n' % vars())
 				i = 2
+				j+=1
 			elif i == 2:
 				i = 3
 			elif i == 3: # q-score line
