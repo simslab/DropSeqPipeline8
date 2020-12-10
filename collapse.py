@@ -27,7 +27,7 @@ elif technology in ['DropSeqv2','PearSeq']:
 	umipos = 8
 	cellbcpos = 11
 	cellbclen = 12
-elif technology == '10xv3':
+elif technology in ['10xv3','CiteSeq']:
 	umipos = 11
 	cellbcpos = 15
 	cellbclen = 16

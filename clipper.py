@@ -99,7 +99,7 @@ def enumerate_bcs(bc):
 	return bcs
 
 
-def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE): # gzip compressed input and output
+def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE,technology): # gzip compressed input and output
 	bc_seqs = [] 
 	ext_citeseq = {}
 	with open(citeseq_INFILE) as f:
@@ -109,8 +109,14 @@ def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE):
 			bcs = enumerate_bcs(bc)
 			for bc2 in bcs:
 				ext_citeseq[bc2] = llist[0]
-	bclen = 21
-	cbclen = 12
+	if technology == 'PearSeq':
+		bclen = 21
+		cbclen = 12
+		N = 'NNNNNNNNNNNN'
+	elif technology == 'CiteSeq':
+		bclen = 28
+		cbclen = 16
+		N = 'NNNNNNNNNNNNNNNN'
 	cslen = len(list(ext_citeseq.keys())[0])
 	i = 0
 	with gzip.open(fastq1_INFILE,'rb') as f:
@@ -138,11 +144,12 @@ def pearclipper(fastq1_INFILE,fastq2_INFILE,pearaddress_OUTFILE,citeseq_INFILE):
 			elif i == 1:
 				csbc = line[0:cslen]
 				if csbc in ext_citeseq.keys():
-					if len(bc_seqs[j]) == 21:
-						cbc = bc_seqs[j][0:12]
-						umi = bc_seqs[j][12::]
+					if len(bc_seqs[j]) == bclen:
+						cbc = bc_seqs[j][0:cbclen]
+						umi = bc_seqs[j][cbclen::]
 						feature = ext_citeseq[csbc]
-						g.write('%(readid)s\t%(cbc)s\t%(umi)s\t%(feature)s\t0\n' % vars())
+						if cbc != N:
+							g.write('%(readid)s\t%(cbc)s\t%(umi)s\t%(feature)s\t0\n' % vars())
 				i = 2
 				j+=1
 			elif i == 2:

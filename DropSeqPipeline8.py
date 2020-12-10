@@ -17,7 +17,7 @@ def parse_user_input():
 	parser.add_argument('-v','--overhang',type=int,required=False,help='sjdbOverhang parameter for STAR.')
 	parser.add_argument('-t','--threads',type=int,required=True,help='Number of threads for STAR and samtools.')
 	parser.add_argument('-s','--s3path',required=True,help='s3 bucket for data storage.')
-	parser.add_argument('-x','--technology',required=True,choices=['10xv2','10xv2','DropSeqv1','DropSeqv2','PearSeq'],help='Technology (determines barcoding scheme).') 
+	parser.add_argument('-x','--technology',required=True,choices=['10xv2','10xv2','DropSeqv1','DropSeqv2','PearSeq','CiteSeq'],help='Technology (determines barcoding scheme).') 
 	parser.add_argument('-b','--citeseq-barcodes',required=False,help='Path to 2-column file with cite-seq features and barcodes. Required if technology is PearSeq.')
 	parser.add_argument('-e','--exon-only',action='store_true',help='Option to skip whole-gene body processing and only process exon-only reads.')
 	parser.add_argument('-a','--address-only',action='store_true',help='Option to stop after generating an address file (e.g. for index-swap correction).')
@@ -34,14 +34,14 @@ r2fastq_INFILE = ui.read2fastq
 r2fastqclip_INFILE = outdir+'/'+prefix+'_R2.clip.fastq.gz'
 technology = ui.technology
 s3bucket = ui.s3path
-if technology == 'PearSeq':
+if technology == 'PearSeq' or technology == 'CiteSeq':
 	if not ui.citeseq_barcodes:
 		print('Error: --citeseq-barcodes path required for PearSeq')
 		exit()
 	else:
 		pearaddress_INFILE = outdir+'/'+prefix+'.pear_address.txt'
 		citeseq_INFILE = ui.citeseq_barcodes
-		cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s PearSeq %(pearaddress_INFILE)s %(citeseq_INFILE)s' % vars()
+		cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s %(technology)s %(pearaddress_INFILE)s %(citeseq_INFILE)s' % vars()
 		print(cmd)
 		os.system(cmd)
 		cmd = 'gzip %(pearaddress_INFILE)s' % vars()
@@ -69,7 +69,7 @@ print(cmd)
 os.system(cmd)
 
 # align clipped read 2 fastq to the genome/transcriptome annotation with 2-pass STAR
-if technology != 'PearSeq':
+if technology not in ['PearSeq','CiteSeq']:
 	bam_OUTFILE = outdir+'/'+prefix+'.Aligned.out.bam'
 	refdir = ui.refdir
 	gtf_INFILE = ui.gtf
@@ -238,7 +238,7 @@ if technology != 'PearSeq':
 	print(cmd)
 	os.system(cmd)
 
-elif technology == 'PearSeq':
+elif technology == 'PearSeq' or technology == 'CiteSeq':
 	tmp_OUTFILE = outdir+'/'+prefix+'.tmp'
 	pearaddresscts_OUTFILE = outdir+'/'+prefix+'.pear_address.cts.txt'
 	cmd = 'zcat %(pearaddress_INFILE)s.gz | python addressct.py %(tmp_OUTFILE)s %(pearaddresscts_OUTFILE)s' % vars()
