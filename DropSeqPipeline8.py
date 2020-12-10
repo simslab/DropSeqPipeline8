@@ -246,7 +246,7 @@ if technology not in ['PearSeq','CiteSeq']:
 
 elif technology == 'PearSeq' or technology == 'CiteSeq':
 	if ui.post_swap:
-		pearaddress_INFILE=outdir+'/'+run+'.address.decode.txt'
+		pearaddress_INFILE=outdir+'/'+prefix+'.address.swap.decode.txt'
 	tmp_OUTFILE = outdir+'/'+prefix+'.tmp'
 	pearaddresscts_OUTFILE = outdir+'/'+prefix+'.pear_address.cts.txt'
 	cmd = 'zcat %(pearaddress_INFILE)s.gz | python addressct.py %(tmp_OUTFILE)s %(pearaddresscts_OUTFILE)s' % vars()
