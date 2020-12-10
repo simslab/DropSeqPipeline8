@@ -21,6 +21,7 @@ def parse_user_input():
 	parser.add_argument('-b','--citeseq-barcodes',required=False,help='Path to 2-column file with cite-seq features and barcodes. Required if technology is PearSeq.')
 	parser.add_argument('-e','--exon-only',action='store_true',help='Option to skip whole-gene body processing and only process exon-only reads.')
 	parser.add_argument('-a','--address-only',action='store_true',help='Option to stop after generating an address file (e.g. for index-swap correction).')
+	parser.add_argument('-ps','--post-swap',action='store_true',help='Option to start pipeline from a pre-generated address file (e.g. after index-swap correction).')
 	return parser
 
 
@@ -34,81 +35,86 @@ r2fastq_INFILE = ui.read2fastq
 r2fastqclip_INFILE = outdir+'/'+prefix+'_R2.clip.fastq.gz'
 technology = ui.technology
 s3bucket = ui.s3path
-if technology == 'PearSeq' or technology == 'CiteSeq':
-	if not ui.citeseq_barcodes:
-		print('Error: --citeseq-barcodes path required for PearSeq')
-		exit()
-	else:
-		pearaddress_INFILE = outdir+'/'+prefix+'.pear_address.txt'
-		citeseq_INFILE = ui.citeseq_barcodes
-		cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s %(technology)s %(pearaddress_INFILE)s %(citeseq_INFILE)s' % vars()
-		print(cmd)
-		os.system(cmd)
-		cmd = 'gzip %(pearaddress_INFILE)s' % vars()
-		print(cmd)
-		os.system(cmd)
-		if ui.address_only:
-			print('Stopping after address file generation...')
+if not ui.post_swap:
+	if technology == 'PearSeq' or technology == 'CiteSeq':
+		if not ui.citeseq_barcodes:
+			print('Error: --citeseq-barcodes path required for PearSeq')
 			exit()
-else:
-	cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s %(technology)s | gzip > %(r2fastqclip_INFILE)s' % vars()	 
+		else:
+			pearaddress_INFILE = outdir+'/'+prefix+'.pear_address.txt'
+			citeseq_INFILE = ui.citeseq_barcodes
+			cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s %(technology)s %(pearaddress_INFILE)s %(citeseq_INFILE)s' % vars()
+			print(cmd)
+			os.system(cmd)
+			cmd = 'gzip %(pearaddress_INFILE)s' % vars()
+			print(cmd)
+			os.system(cmd)
+			if ui.address_only:
+				print('Stopping after address file generation...')
+				exit()
+	else:
+		cmd = 'zcat %(r2fastq_INFILE)s | python callclipper.py %(r1fastq_INFILE)s %(technology)s | gzip > %(r2fastqclip_INFILE)s' % vars()	 
+		print(cmd)
+		os.system(cmd)
+
+# copy fastqs to S3
+	cmd = 'aws s3 cp %(r1fastq_INFILE)s s3://%(s3bucket)s/%(r1fastq_INFILE)s' % vars()
+	print(cmd)
+	os.system(cmd)
+	cmd = 'aws s3 cp %(r2fastq_INFILE)s s3://%(s3bucket)s/%(r2fastq_INFILE)s' % vars()
 	print(cmd)
 	os.system(cmd)
 
-# copy fastqs to S3
-cmd = 'aws s3 cp %(r1fastq_INFILE)s s3://%(s3bucket)s/%(r1fastq_INFILE)s' % vars()
-print(cmd)
-os.system(cmd)
-cmd = 'aws s3 cp %(r2fastq_INFILE)s s3://%(s3bucket)s/%(r2fastq_INFILE)s' % vars()
-print(cmd)
-os.system(cmd)
-
 # remove fastqs
-cmd = 'rm %(r1fastq_INFILE)s %(r2fastq_INFILE)s' % vars()
-print(cmd)
-os.system(cmd)
+	cmd = 'rm %(r1fastq_INFILE)s %(r2fastq_INFILE)s' % vars()
+	print(cmd)
+	os.system(cmd)
 
 # align clipped read 2 fastq to the genome/transcriptome annotation with 2-pass STAR
 if technology not in ['PearSeq','CiteSeq']:
-	bam_OUTFILE = outdir+'/'+prefix+'.Aligned.out.bam'
-	refdir = ui.refdir
-	gtf_INFILE = ui.gtf
-	threads = ui.threads
-	overhang = ui.overhang
-	cmd = 'python star.py %(outdir)s %(prefix)s %(r2fastqclip_INFILE)s %(refdir)s %(gtf_INFILE)s %(threads)d %(overhang)d' % vars()
-	print(cmd)
-	os.system(cmd)
+	if not ui.post_swap:
+		bam_OUTFILE = outdir+'/'+prefix+'.Aligned.out.bam'
+		refdir = ui.refdir
+		gtf_INFILE = ui.gtf
+		threads = ui.threads
+		overhang = ui.overhang
+		cmd = 'python star.py %(outdir)s %(prefix)s %(r2fastqclip_INFILE)s %(refdir)s %(gtf_INFILE)s %(threads)d %(overhang)d' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	# sort bam file by coordinate
-	sortedbam_OUTFILE = outdir+'/'+prefix+'.Aligned.out.sorted.bam'
-	cmd = 'samtools sort -@ %(threads)d %(bam_OUTFILE)s -o %(sortedbam_OUTFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
+		# sort bam file by coordinate
+		sortedbam_OUTFILE = outdir+'/'+prefix+'.Aligned.out.sorted.bam'
+		cmd = 'samtools sort -@ %(threads)d %(bam_OUTFILE)s -o %(sortedbam_OUTFILE)s' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	# remove unsorted bam file
-	cmd = 'rm %(bam_OUTFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
+		# remove unsorted bam file
+		cmd = 'rm %(bam_OUTFILE)s' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	# extract read addresses that uniquely and strand-specifically align to whole genes (including introns)
-	address_OUTFILE = outdir+'/'+prefix+'.address.txt.gz'
-	cmd = 'samtools view %(sortedbam_OUTFILE)s | python address.py %(gtf_INFILE)s %(technology)s | gzip > %(address_OUTFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
+		# extract read addresses that uniquely and strand-specifically align to whole genes (including introns)
+		address_OUTFILE = outdir+'/'+prefix+'.address.txt.gz'
+		cmd = 'samtools view %(sortedbam_OUTFILE)s | python address.py %(gtf_INFILE)s %(technology)s | gzip > %(address_OUTFILE)s' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	# copy bam file to S3
-	cmd = 'aws s3 sync %(outdir)s s3://%(s3bucket)s/%(outdir)s' % vars()
-	print(cmd)
-	os.system(cmd)
+		# copy bam file to S3
+		cmd = 'aws s3 sync %(outdir)s s3://%(s3bucket)s/%(outdir)s' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	# remove bam file
-	cmd = 'rm %(sortedbam_OUTFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
+		# remove bam file
+		cmd = 'rm %(sortedbam_OUTFILE)s' % vars()
+		print(cmd)
+		os.system(cmd)
 
-	if ui.address_only:
-		print('Stopping after address file generation...')
-		exit()
+		if ui.address_only:
+			print('Stopping after address file generation...')
+			exit()
+
+	else:
+		address_OUTFILE = outdir+'/'+prefix+'.address.swap.decode.txt.gz'
 
 	# count the number of times each read address occurs for whole genes (UMI collapse without error correction)
 	geneaddresscts_OUTFILE = outdir+'/'+prefix+'.gene_address.cts.txt'
@@ -239,6 +245,8 @@ if technology not in ['PearSeq','CiteSeq']:
 	os.system(cmd)
 
 elif technology == 'PearSeq' or technology == 'CiteSeq':
+	if ui.post_swap:
+		pearaddress_INFILE=outdir+'/'+run+'.address.decode.txt'
 	tmp_OUTFILE = outdir+'/'+prefix+'.tmp'
 	pearaddresscts_OUTFILE = outdir+'/'+prefix+'.pear_address.cts.txt'
 	cmd = 'zcat %(pearaddress_INFILE)s.gz | python addressct.py %(tmp_OUTFILE)s %(pearaddresscts_OUTFILE)s' % vars()
