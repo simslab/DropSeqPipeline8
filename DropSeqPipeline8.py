@@ -17,7 +17,7 @@ def parse_user_input():
 	parser.add_argument('-v','--overhang',type=int,required=False,help='sjdbOverhang parameter for STAR.')
 	parser.add_argument('-t','--threads',type=int,required=True,help='Number of threads for STAR and samtools.')
 	parser.add_argument('-s','--s3path',required=True,help='s3 bucket for data storage.')
-	parser.add_argument('-x','--technology',required=True,choices=['10xv2','10xv2','DropSeqv1','DropSeqv2','PearSeq','CiteSeq'],help='Technology (determines barcoding scheme).') 
+	parser.add_argument('-x','--technology',required=True,choices=['10xv2','10xv3','DropSeqv1','DropSeqv2','PearSeq','CiteSeq'],help='Technology (determines barcoding scheme).') 
 	parser.add_argument('-b','--citeseq-barcodes',required=False,help='Path to 2-column file with cite-seq features and barcodes. Required if technology is PearSeq.')
 	parser.add_argument('-e','--exon-only',action='store_true',help='Option to skip whole-gene body processing and only process exon-only reads.')
 	parser.add_argument('-a','--address-only',action='store_true',help='Option to stop after generating an address file (e.g. for index-swap correction).')
@@ -131,7 +131,7 @@ if technology not in ['PearSeq','CiteSeq']:
 		print(cmd)
 		os.system(cmd)
 
-		# re-count the number of times each read address occurs for whole genes (UMI collapse without error correction)
+	# re-count the number of times each read address occurs for whole genes (UMI collapse without error correction)
 		geneaddresscccts_OUTFILE = outdir+'/'+prefix+'.gene_address.cccts.txt'
 		cmd = 'cat %(geneaddressccts_OUTFILE)s | python addressct2.py %(geneaddresscccts_OUTFILE)s' % vars()
 		print(cmd)
@@ -173,7 +173,7 @@ if technology not in ['PearSeq','CiteSeq']:
 		os.system(cmd)
 
 		# clean up temporary files
-		cmd = 'rm %(geneaddresscts2_OUTFILE)s %(exonaddresscts2_OUTFILE)s %(geneaddressccts2_OUTFILE)s %(exonaddressccts2_OUTFILE)s' % vars()
+		cmd = 'rm %(geneaddresscts2_OUTFILE)s %(geneaddressccts2_OUTFILE)s' % vars()
 		print(cmd)
 		os.system(cmd)
 
