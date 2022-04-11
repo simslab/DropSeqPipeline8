@@ -77,17 +77,18 @@ if not ui.post_swap:
 		
 
 # copy fastqs to S3
-	cmd = 'aws s3 cp %(r1fastq_INFILE)s s3://%(s3bucket)s/%(r1fastq_INFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
-	cmd = 'aws s3 cp %(r2fastq_INFILE)s s3://%(s3bucket)s/%(r2fastq_INFILE)s' % vars()
-	print(cmd)
-	os.system(cmd)
+    for r1fastq_INFILE,r2fastq_INFILE in zip(r1fastq_INFILES,r2fastq_INFILES):
+    	cmd = 'aws s3 cp %(r1fastq_INFILE)s s3://%(s3bucket)s/%(r1fastq_INFILE)s' % vars()
+	    print(cmd)
+    	os.system(cmd)
+	    cmd = 'aws s3 cp %(r2fastq_INFILE)s s3://%(s3bucket)s/%(r2fastq_INFILE)s' % vars()
+    	print(cmd)
+	    os.system(cmd)
 
 # remove fastqs
-#	cmd = 'rm %(r1fastq_INFILE)s %(r2fastq_INFILE)s' % vars()
-#	print(cmd)
-#	os.system(cmd)
+    	cmd = 'rm %(r1fastq_INFILE)s %(r2fastq_INFILE)s' % vars()
+	    print(cmd)
+    	os.system(cmd)
 
 # align clipped read 2 fastq to the genome/transcriptome annotation with 2-pass STAR
 if technology not in ['PearSeq','CiteSeq5v2','CiteSeq3v3','CiteSeqTSB']:
